@@ -108,7 +108,7 @@ class FinvizScraper(BaseScraper):
                 self.finviz_caller(symbol)
 
 
-class YahooScrapper(BaseScraper):
+class YahooScraper(BaseScraper):
 
     @property
     def yahoo_invalid_symbols(self):
@@ -184,4 +184,4 @@ class YahooScrapper(BaseScraper):
 if __name__ == '__main__':
     now = datetime.datetime.now()
     FinvizScraper(now).run()
-    YahooScrapper(now).run()
+    YahooScraper(now).run()
