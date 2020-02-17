@@ -31,7 +31,9 @@ class BaseScraper():
     @staticmethod
     def list_writer(self, destination, content):
         while content:
-            text = content.pop(0) + '|'
+            text = content.pop(0)
+            if content:
+                text += '|'
             destination.write(text)
         destination.write('\n')
 
