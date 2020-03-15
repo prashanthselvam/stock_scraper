@@ -11,13 +11,13 @@ OTHER = 'http://ftp.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt'
 
 class FinanceSetup():
 
-    def __init__(self, date):
+    def __init__(self, date=datetime.datetime.now()):
         self.date = date
 
     @property
     def invalid_symbols(self):
         invalid_symbols = []
-        f = open('symbols/invalid_symbols.txt', 'r')
+        f = open('data/working_files/invalid_symbols.txt', 'r')
 
         for line in f:
             invalid_symbols.append(line.rstrip('\n'))
@@ -33,16 +33,16 @@ class FinanceSetup():
         stocks = []
 
         logging.info('Writing NASDAQ tickers to nasdaq_stocks.txt')
-        with open('nasdaq_stocks.txt', 'wb') as f:
+        with open('data/working_files/nasdaq_stocks.txt', 'wb') as f:
             f.write(n_req.content)
 
         logging.info('Writing other tickers to other_stocks.txt')
-        with open('other_stocks.txt', 'wb') as f:
+        with open('data/working_files/other_stocks.txt', 'wb') as f:
             f.write(o_req.content)
 
         logging.info('Combining valid tickers into stocks.txt')
-        with open('stocks.txt', 'w') as s:
-            with open('nasdaq_stocks.txt') as f:
+        with open('data/working_files/stocks.txt', 'w') as s:
+            with open('data/working_files/nasdaq_stocks.txt') as f:
                 for cnt, line in enumerate(f):
                     row = (line.split('|'))
                     if row[1] not in ('Symbol', 'Security Name', '') \
@@ -54,7 +54,7 @@ class FinanceSetup():
                         s.write(str(output) + '\n')
                         stocks.append(row[1])
 
-            with open('other_stocks.txt') as f:
+            with open('data/working_files/other_stocks.txt') as f:
                 for cnt, line in enumerate(f):
                     row = (line.split('|'))
                     if row[0] not in ('Symbol', 'Security Name', '') \
@@ -73,7 +73,7 @@ class FinanceSetup():
         its timestamp
         """
         date = str(self.date.strftime('%Y_%m_%d'))
-        dest = 'symbols/stocks_{date}.txt'.format(date=date)
+        dest = 'data/stocks/stocks_{date}.txt'.format(date=date)
 
         logging.info('Copying stocks.txt file to {dest}'.format(dest=dest))
         f = open(dest, "w")
@@ -83,7 +83,7 @@ class FinanceSetup():
 
     def run(self):
         self.get_tickers()
-        self.move_stocks_file('stocks.txt')
+        self.move_stocks_file('data/working_files/stocks.txt')
 
 
 if __name__ == '__main__':

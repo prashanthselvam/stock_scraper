@@ -1,10 +1,13 @@
 import datetime
 import json
+import logging
+
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class DataCleaner():
 
-    def __init__(self, date):
+    def __init__(self, date=datetime.datetime.now()):
         self.date = date
 
     @staticmethod
@@ -20,9 +23,9 @@ class DataCleaner():
             try:
                 return round(float(x.replace('%', '').strip())/100, 4)
             except:
-                return 'nan'
+                pass
         elif 'N/A' in str(x):
-            return 'nan'
+            return None
 
     @staticmethod
     def big_no_clean(x):
@@ -35,7 +38,7 @@ class DataCleaner():
         elif 'T' in str(x) or 't' in str(x):
             return int(int(float(x.replace('t', '').replace('T', '').strip())*1000000000000))
         elif 'N/A' in str(x) or '-' in str(x):
-            return 'nan'
+            return None
         else:
             return str(x).replace(',', '')
 
@@ -51,13 +54,13 @@ class DataCleaner():
             if key in yahoo_ev_dict.keys():
                 dd[key].update(yahoo_ev_dict[key])
             else:
-                dd[key]['evebitda'] = 'N/A'
+                dd[key]['evebitda'] = None
 
         return dd
 
     def output_file(self, dict):
         date = str(self.date.strftime('%Y_%m_%d'))
-        output_file = open('final_output/clean_data_' + date + '.txt', 'a+')
+        output_file = open('data/final_output/clean_data_' + date + '.json', 'a+')
 
         for value in dict.values():
             s = json.dumps(value)
@@ -98,13 +101,26 @@ class DataCleaner():
                     dict_version[ticker][key] = self.big_no_clean(dict_version[ticker][key])
 
                 # Change volume to be an actual number
-                dict_version[ticker]['volume'] = int(dict_version[ticker]['volume'].replace(',', ''))
+                try:
+                    dict_version[ticker]['volume'] = int(dict_version[ticker]['volume'].replace(',', ''))
+                except:
+                    dict_version[ticker]['volume'] = None
+
+        for ticker in dict_version.keys():
+            for key, value in dict_version[ticker].items():
+                if value in ['-', 'N/A']:
+                    dict_version[ticker][key] = None
+                elif key != 'ticker' and type(value) == str:
+                    try:
+                        dict_version[ticker][key] = float(value)
+                    except:
+                        pass
 
         return dict_version
 
     def process_yahoo_ev_data(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        dest = 'raw_data/yahoo_ev_stats_{date}.txt'.format(date=date)
+        dest = 'data/raw_data/yahoo_ev_stats_{date}.txt'.format(date=date)
         f = open(dest, 'r')
 
         yahoo_ev_dict = self.create_data_dict(f)
@@ -113,14 +129,14 @@ class DataCleaner():
 
     def process_finviz_profile_data(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        dest = 'raw_data/finviz_profile_{date}.txt'.format(date=date)
+        dest = 'data/raw_data/finviz_profile_{date}.txt'.format(date=date)
         f = open(dest, 'r')
         finviz_profile_dict = self.create_data_dict(f)
         return finviz_profile_dict
 
     def process_finviz_stats_data(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        dest = 'raw_data/finviz_stats_{date}.txt'.format(date=date)
+        dest = 'data/raw_data/finviz_stats_{date}.txt'.format(date=date)
         f = open(dest, 'r')
         finviz_stats_dict = self.create_data_dict(f, finviz_stat_processing=True)
         return finviz_stats_dict

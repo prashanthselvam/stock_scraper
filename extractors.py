@@ -2,18 +2,19 @@ from bs4 import BeautifulSoup
 import requests
 import logging
 import datetime
+import backoff
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class BaseScraper():
 
-    def __init__(self, date):
+    def __init__(self, date=datetime.datetime.now()):
         self.date = date
 
     @property
     def symbols(self):
-        dest = 'symbols/stocks_' + str(self.date.strftime('%Y_%m_%d')) + '.txt'
+        dest = 'data/stocks/stocks_' + str(self.date.strftime('%Y_%m_%d')) + '.txt'
         f = open(dest, 'r')
         symbols = []
 
@@ -25,10 +26,9 @@ class BaseScraper():
 
     @property
     def invalids_file(self):
-        invalids_file = open('symbols/invalid_symbols.txt', 'a+')
+        invalids_file = open('data/working_files/invalid_symbols.txt', 'a+')
         return invalids_file
 
-    @staticmethod
     def list_writer(self, destination, content):
         while content:
             text = content.pop(0)
@@ -40,23 +40,32 @@ class BaseScraper():
 
 class FinvizScraper(BaseScraper):
 
+    @staticmethod
+    @backoff.on_exception(backoff.expo, Exception, max_tries=10, factor=2, logger=logging)
+    def make_request(ticker):
+        url = 'https://finviz.com/quote.ashx?t={ticker}'.format(ticker=ticker)
+        request = requests.get(url)
+        return request
+
     @property
     def finviz_stats_file(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        finviz_stats_file = open('raw_data/finviz_stats_' + date + '.txt', 'a+')
+        finviz_stats_file = open('data/raw_data/finviz_stats_' + date + '.txt', 'a+')
         return finviz_stats_file
 
     @property
     def finviz_profile_file(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        finviz_profile_file = open('raw_data/finviz_profile_' + date + '.txt', 'a+')
+        finviz_profile_file = open('data/raw_data/finviz_profile_' + date + '.txt', 'a+')
         return finviz_profile_file
 
     def finviz_caller(self, symbol, return_headers=False):
         logging.info('Making Finviz request for %s', symbol)
-        req = requests.get('https://finviz.com/quote.ashx?t={symbol}'.format(
-            symbol=symbol)
-        )
+
+        try:
+            req = self.make_request(symbol)
+        except:
+            return None
 
         if req.status_code != 200:
             logging.info('Request for {symbol} returned {status_code}'.format(
@@ -87,11 +96,11 @@ class FinvizScraper(BaseScraper):
                     out_stats_headers = [stats_headers[k] for k in range(len(stats_headers))]
                     out_profile_headers = ['Ticker', 'Name', 'Sector', 'Industry', 'Country']
 
-                    self.list_writer(self, self.finviz_profile_file, out_profile_headers)
-                    self.list_writer(self, self.finviz_stats_file, out_stats_headers)
+                    self.list_writer(self.finviz_profile_file, out_profile_headers)
+                    self.list_writer(self.finviz_stats_file, out_stats_headers)
 
-                self.list_writer(self, self.finviz_profile_file, profile_out)
-                self.list_writer(self, self.finviz_stats_file, stats_out)
+                self.list_writer(self.finviz_profile_file, profile_out)
+                self.list_writer(self.finviz_stats_file, stats_out)
 
                 logging.info('Successfully pulled Finviz data for {symbol}'.format(symbol=symbol))
 
@@ -110,10 +119,18 @@ class FinvizScraper(BaseScraper):
 
 class YahooScraper(BaseScraper):
 
+    @staticmethod
+    @backoff.on_exception(backoff.expo, Exception, max_tries=10, factor=2, logger=logging)
+    def make_request(ticker):
+        url = 'https://finance.yahoo.com/quote/{ticker}/key-statistics?'.format(
+            ticker=ticker)
+        request = requests.get(url)
+        return request
+
     @property
     def yahoo_invalid_symbols(self):
         # Yahoo has its own set of invalid symbols
-        dest = 'symbols/yahoo_invalid_symbols.txt'
+        dest = 'data/working_files/yahoo_invalid_symbols.txt'
         f = open(dest, 'r')
         yahoo_invalid_symbols = []
 
@@ -124,20 +141,22 @@ class YahooScraper(BaseScraper):
 
     @property
     def yahoo_invalids_file(self):
-        yahoo_invalids_file = open('symbols/yahoo_invalid_symbols.txt', 'a')
+        yahoo_invalids_file = open('data/working_files/yahoo_invalid_symbols.txt', 'a')
         return yahoo_invalids_file
 
     @property
     def yahoo_ev_stats_file(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        yahoo_ev_stats_file = open('raw_data/yahoo_ev_stats_' + date + '.txt', 'a+')
+        yahoo_ev_stats_file = open('data/raw_data/yahoo_ev_stats_' + date + '.txt', 'a+')
         return yahoo_ev_stats_file
 
     def yahoo_caller(self, symbol, return_headers=False):
         logging.info('Making Yahoo request for %s', symbol)
-        req = requests.get('https://finance.yahoo.com/quote/{symbol}/key-statistics?'.format(
-            symbol=symbol)
-        )
+
+        try:
+            req = self.make_request(symbol)
+        except:
+            return None
 
         if req.status_code != 200:
             logging.info('Request for {symbol} returned {status_code}'.format(
@@ -163,14 +182,14 @@ class YahooScraper(BaseScraper):
 
                 if return_headers:
                     ev_headers = ['Ticker', 'EVEBITDA']
-                    self.list_writer(self, self.yahoo_ev_stats_file, ev_headers)
+                    self.list_writer(self.yahoo_ev_stats_file, ev_headers)
 
-                self.list_writer(self, self.yahoo_ev_stats_file, out)
+                self.list_writer(self.yahoo_ev_stats_file, out)
                 logging.info('Successfully pulled Yahoo data for {symbol}'.format(symbol=symbol))
 
             except:
                 logging.info('Some issue with processing {symbol}'.format(symbol=symbol))
-                self.list_writer(self, self.invalids_file, [symbol])
+                self.list_writer(self.invalids_file, [symbol])
 
     def run(self):
         for symbol in self.symbols:
