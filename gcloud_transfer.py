@@ -1,4 +1,3 @@
-import datetime
 import logging
 import os
 
@@ -6,10 +5,10 @@ from google.cloud import storage
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
+
 class GCLMover():
 
-    def __init__(self, date=datetime.datetime.now(), dst_bucket):
-        self.date = date
+    def __init__(self, dst_bucket='stock_scrape_bucket'):
         self.client = storage.Client()
         self.bucket = self.client.bucket(dst_bucket)
         self.paths = ['data/stocks/',
@@ -39,3 +38,5 @@ class GCLMover():
         self.move_files()
 
 
+if __name__ == '__main__':
+    GCLMover().run()
