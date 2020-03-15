@@ -8,12 +8,13 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 class GCLMover():
 
-    def __init__(self, dst_bucket='stock_scrape_bucket'):
+    def __init__(self, dst_bucket):
         self.client = storage.Client()
         self.bucket = self.client.bucket(dst_bucket)
         self.paths = ['data/stocks/',
                       'data/raw_data/',
-                      'data/final_output/']
+                      'data/final_output/',
+                      'analysis_output/']
 
     def upload_files(self, source_file_name, destination_blob_name):
         """Uploads a file to the bucket."""
@@ -39,4 +40,4 @@ class GCLMover():
 
 
 if __name__ == '__main__':
-    GCLMover().run()
+    GCLMover('stock_scrape_bucket').run()

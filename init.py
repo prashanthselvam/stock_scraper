@@ -6,6 +6,7 @@ import papermill as pm
 from setup import FinanceSetup
 from extractors import FinvizScraper, YahooScraper
 from cleaners import DataCleaner
+from gcloud_transfer import GCLMover
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -45,6 +46,9 @@ if __name__ == '__main__':
         'analysis.ipynb',
         parameters=dict(date=str(date.strftime('%Y_%m_%d')))
     )
+
+    logging.info("Transferring files over to Google Cloud Storage")
+    GCLMover().run()
 
     logging.info('End-to-end process complete for {date}'.format(
         date=str(date.strftime('%Y_%m_%d'))
