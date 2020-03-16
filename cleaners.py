@@ -1,20 +1,25 @@
 import datetime
 import json
 import logging
+import os
+import argparse
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class DataCleaner():
 
-    def __init__(self, date=datetime.datetime.now()):
+    def __init__(self, date=datetime.datetime.now(), cron_path=''):
         self.date = date
+        self.cron_path = cron_path
 
     @staticmethod
     def clean_col_name(col_name):
         col_name = col_name.lower()
         col_name = col_name.replace('(', '').replace(')', '').replace('/', '').\
             replace('%', 'pct').replace('.', '').replace(' ', '_')
+        if col_name[:2] == '52':
+            col_name.replace('52', 'fifty_two')
         return col_name
 
     @staticmethod
@@ -60,7 +65,10 @@ class DataCleaner():
 
     def output_file(self, dict):
         date = str(self.date.strftime('%Y_%m_%d'))
-        output_file = open('data/final_output/clean_data_' + date + '.json', 'a+')
+        output_file = open(os.path.join(
+            self.cron_path,
+            'data/final_output/clean_data_{date}.json'.format(date=date)
+        ), 'a+')
 
         for value in dict.values():
             s = json.dumps(value)
@@ -120,7 +128,7 @@ class DataCleaner():
 
     def process_yahoo_ev_data(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        dest = 'data/raw_data/yahoo_ev_stats_{date}.txt'.format(date=date)
+        dest = os.path.join(self.cron_path, 'data/raw_data/yahoo_ev_stats_{date}.txt'.format(date=date))
         f = open(dest, 'r')
 
         yahoo_ev_dict = self.create_data_dict(f)
@@ -129,19 +137,20 @@ class DataCleaner():
 
     def process_finviz_profile_data(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        dest = 'data/raw_data/finviz_profile_{date}.txt'.format(date=date)
+        dest = os.path.join(self.cron_path, 'data/raw_data/finviz_profile_{date}.txt'.format(date=date))
         f = open(dest, 'r')
         finviz_profile_dict = self.create_data_dict(f)
         return finviz_profile_dict
 
     def process_finviz_stats_data(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        dest = 'data/raw_data/finviz_stats_{date}.txt'.format(date=date)
+        dest = os.path.join(self.cron_path, 'data/raw_data/finviz_stats_{date}.txt'.format(date=date))
         f = open(dest, 'r')
         finviz_stats_dict = self.create_data_dict(f, finviz_stat_processing=True)
         return finviz_stats_dict
 
     def run(self):
+        logging.info('Processing all the files and creating final version')
         finviz_stats_dict = self.process_finviz_stats_data()
         finviz_profile_dict = self.process_finviz_profile_data()
         yahoo_ev_dict = self.process_yahoo_ev_data()
@@ -151,9 +160,20 @@ class DataCleaner():
                                         yahoo_ev_dict)
 
         self.output_file(final_dict)
+        logging.info('Final dictionary output to destination')
 
 
 if __name__ == '__main__':
-    now = datetime.datetime.now()
-    DataCleaner(now).run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', default=datetime.datetime.now())
+    parser.add_argument('-c', default='')
+    args = parser.parse_args()
+
+    date = args.d
+    cron_path = args.c
+
+    if not type(date) == datetime.datetime:
+        date = datetime.datetime.strptime(args.d, '%Y-%m-%d')
+
+    DataCleaner(date, cron_path).run()
 

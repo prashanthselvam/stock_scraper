@@ -3,18 +3,22 @@ import requests
 import logging
 import datetime
 import backoff
+import os
+import argparse
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class BaseScraper():
 
-    def __init__(self, date=datetime.datetime.now()):
+    def __init__(self, date=datetime.datetime.now(), cron_path=''):
         self.date = date
+        self.cron_path = cron_path
 
     @property
     def symbols(self):
-        dest = 'data/stocks/stocks_' + str(self.date.strftime('%Y_%m_%d')) + '.txt'
+        dest = os.path.join(self.cron_path, 'data/stocks/stocks_')
+        dest += str(self.date.strftime('%Y_%m_%d')) + '.txt'
         f = open(dest, 'r')
         symbols = []
 
@@ -26,10 +30,15 @@ class BaseScraper():
 
     @property
     def invalids_file(self):
-        invalids_file = open('data/working_files/invalid_symbols.txt', 'a+')
+        invalids_file = open(os.path.join(
+            self.cron_path,
+            'data/working_files/invalid_symbols.txt', 'a+')
+        )
+
         return invalids_file
 
-    def list_writer(self, destination, content):
+    @staticmethod
+    def list_writer(destination, content):
         while content:
             text = content.pop(0)
             if content:
@@ -50,13 +59,21 @@ class FinvizScraper(BaseScraper):
     @property
     def finviz_stats_file(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        finviz_stats_file = open('data/raw_data/finviz_stats_' + date + '.txt', 'a+')
+        finviz_path = os.path.join(
+            self.cron_path,
+            'data/raw_data/finviz_stats_{date}.txt'.format(date=date)
+        )
+        finviz_stats_file = open(finviz_path, 'a+')
         return finviz_stats_file
 
     @property
     def finviz_profile_file(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        finviz_profile_file = open('data/raw_data/finviz_profile_' + date + '.txt', 'a+')
+        finviz_path = os.path.join(
+            self.cron_path,
+            'data/raw_data/finviz_profile_{date}.txt'.format(date=date)
+        )
+        finviz_profile_file = open(finviz_path, 'a+')
         return finviz_profile_file
 
     def finviz_caller(self, symbol, return_headers=False):
@@ -130,7 +147,7 @@ class YahooScraper(BaseScraper):
     @property
     def yahoo_invalid_symbols(self):
         # Yahoo has its own set of invalid symbols
-        dest = 'data/working_files/yahoo_invalid_symbols.txt'
+        dest = os.path.join(self.cron_path, 'data/working_files/yahoo_invalid_symbols.txt')
         f = open(dest, 'r')
         yahoo_invalid_symbols = []
 
@@ -141,13 +158,18 @@ class YahooScraper(BaseScraper):
 
     @property
     def yahoo_invalids_file(self):
-        yahoo_invalids_file = open('data/working_files/yahoo_invalid_symbols.txt', 'a')
+        dest = os.path.join(self.cron_path, 'data/working_files/yahoo_invalid_symbols.txt')
+        yahoo_invalids_file = open(dest, 'a')
         return yahoo_invalids_file
 
     @property
     def yahoo_ev_stats_file(self):
         date = str(self.date.strftime('%Y_%m_%d'))
-        yahoo_ev_stats_file = open('data/raw_data/yahoo_ev_stats_' + date + '.txt', 'a+')
+        dest = os.path.join(
+            self.cron_path,
+            'data/raw_data/yahoo_ev_stats_{date}.txt'.format(date=date)
+        )
+        yahoo_ev_stats_file = open(dest, 'a+')
         return yahoo_ev_stats_file
 
     def yahoo_caller(self, symbol, return_headers=False):
@@ -201,6 +223,16 @@ class YahooScraper(BaseScraper):
 
 
 if __name__ == '__main__':
-    now = datetime.datetime.now()
-    FinvizScraper(now).run()
-    YahooScraper(now).run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', default=datetime.datetime.now())
+    parser.add_argument('-c', default='')
+    args = parser.parse_args()
+
+    date = args.d
+    cron_path = args.c
+
+    if not type(date) == datetime.datetime:
+        date = datetime.datetime.strptime(args.d, '%Y-%m-%d')
+
+    FinvizScraper(date, cron_path).run()
+    YahooScraper(date, cron_path).run()

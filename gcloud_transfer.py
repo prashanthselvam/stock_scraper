@@ -8,9 +8,10 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 class GCLMover():
 
-    def __init__(self, dst_bucket):
+    def __init__(self, dst_bucket, cron_path=''):
         self.client = storage.Client()
         self.bucket = self.client.bucket(dst_bucket)
+        self.cron_path = cron_path
         self.paths = ['data/stocks/',
                       'data/raw_data/',
                       'data/final_output/',
@@ -29,6 +30,7 @@ class GCLMover():
 
     def move_files(self):
         for path in self.paths:
+            path = os.path.join(self.cron_path, path)
             for f in os.listdir(path):
                 name = path + f
                 self.upload_files(name, name)
@@ -40,4 +42,12 @@ class GCLMover():
 
 
 if __name__ == '__main__':
-    GCLMover('stock_scrape_bucket').run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', default='stock_scrape_bucket')
+    parser.add_argument('-c', default='')
+    args = parser.parse_args()
+
+    dest_bucket = args.b
+    cron_path = args.c
+
+    GCLMover(dest_bucket, cron_path).run()
