@@ -31,9 +31,7 @@ class BaseScraper():
     @property
     def invalids_file(self):
         invalids_file = open(os.path.join(
-            self.cron_path,
-            'data/working_files/invalid_symbols.txt', 'a+')
-        )
+            self.cron_path, 'data/working_files/invalid_symbols.txt'), 'a+')
 
         return invalids_file
 
